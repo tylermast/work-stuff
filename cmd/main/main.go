@@ -49,34 +49,8 @@ func main() {
 		errors.LogError(err, "/GET: Problem reading cookie")
 		w.Write([]byte(value))
 	})
-	http.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
-		cookie := http.Cookie{
-			Name:     "ex",
-			Value:    "foo",
-			Path:     "/",
-			MaxAge:   3600,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-		}
-
-		err := cookies.WriteSigned(w, cookie, key)
-		errors.LogError(err, "/SET: Problem setting cookie")
-		if err != nil {
-			http.Error(w, "cookie setting error", http.StatusInternalServerError)
-			return
-		}
-
-		w.Write([]byte("cookie set"))
-	})
-	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		auth.LoginHandler(w, r)
-	})
-	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		auth.CallbackHandler(w, r)
-	})
-	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
-		auth.LogoutHandler(w, r)
-	})
+	http.HandleFunc("/login", auth.LoginHandler)
+	http.HandleFunc("/callback", auth.CallbackHandler)
+	http.HandleFunc("/logout", auth.LogoutHandler)
 	http.ListenAndServe(":8080", nil)
 }
