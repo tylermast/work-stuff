@@ -1,3 +1,5 @@
 .env
 configs/
 tmp/
+build/work_stuff
+build
