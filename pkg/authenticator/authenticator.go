@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -190,7 +191,50 @@ func (a *Authorization) CallbackHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Write([]byte("<a href='login' target='_self'>Login</a>"))
+	w.Write([]byte("<a href='login' target='_self'>Login</a><br><a href='logout' target='_self'>Logout</a>"))
+}
+
+func (a *Authorization) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	logoutUrl, err := url.Parse("https://" + os.Getenv("AUTH0_DOMAIN") + "/v2/logout")
+	if err != nil {
+		log.Printf("Logout Handler: Issue parsing logout url - %s", err)
+		http.Error(w, "parsing error", http.StatusInternalServerError)
+		return
+	}
+	log.Printf("Logout Handler: Setting logout url - %s", logoutUrl)
+
+	returnTo, err := url.Parse("https://" + r.Host)
+	if err != nil {
+		log.Printf("Logout Handler: Issue parsing redirect url - %s", err)
+		http.Error(w, "parsing error", http.StatusInternalServerError)
+		return
+	}
+	log.Printf("Logout Handler: Setting returnTo url - %s", returnTo)
+
+	parameters := url.Values{}
+	parameters.Add("returnTo", returnTo.String())
+	parameters.Add("client_id", os.Getenv("AUTH0_CLIENT_ID"))
+	logoutUrl.RawQuery = parameters.Encode()
+	log.Printf("Logout Handler: constructed logout url - %s", logoutUrl)
+
+	negatedSessionCookie := http.Cookie{
+		Name:     "session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		SameSite: http.SameSiteLaxMode,
+	}
+	cookies.Write(w, negatedSessionCookie)
+	negatedProfileCookie := http.Cookie{
+		Name:     "profile",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		SameSite: http.SameSiteLaxMode,
+	}
+	cookies.Write(w, negatedProfileCookie)
+
+	http.Redirect(w, r, logoutUrl.String(), http.StatusTemporaryRedirect)
 }
 
 func generateState() (string, error) {

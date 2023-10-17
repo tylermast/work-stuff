@@ -75,5 +75,8 @@ func main() {
 	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		auth.CallbackHandler(w, r)
 	})
+	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		auth.LogoutHandler(w, r)
+	})
 	http.ListenAndServe(":8080", nil)
 }
