@@ -44,11 +44,6 @@ func main() {
 			}
 		}
 	})
-	http.HandleFunc("/get", func(w http.ResponseWriter, r *http.Request) {
-		value, err := cookies.ReadSigned(r, "ex", key)
-		errors.LogError(err, "/GET: Problem reading cookie")
-		w.Write([]byte(value))
-	})
 	http.HandleFunc("/login", auth.LoginHandler)
 	http.HandleFunc("/callback", auth.CallbackHandler)
 	http.HandleFunc("/logout", auth.LogoutHandler)
