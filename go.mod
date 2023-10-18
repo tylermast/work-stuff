@@ -3,6 +3,7 @@ module tylerdmast/work
 go 1.21.1
 
 require (
+	github.com/a-h/templ v0.2.408
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/oauth2 v0.12.0

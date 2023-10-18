@@ -3,14 +3,15 @@ package main
 import (
 	"crypto/rand"
 	"encoding/gob"
-	"fmt"
 	"log"
 	"net/http"
 
 	"tylerdmast/work/pkg/authenticator"
 	"tylerdmast/work/pkg/cookies"
 	"tylerdmast/work/pkg/errors"
+	templates "tylerdmast/work/web/template"
 
+	"github.com/a-h/templ"
 	"github.com/joho/godotenv"
 )
 
@@ -35,17 +36,23 @@ func main() {
 	err = auth.New()
 	auth.SecretKey = key
 	errors.HandleFatalError(err, "Main: Issue initiating authorization struct")
-	log.Printf("Main: Initiated auth client %v", auth)
+	log.Printf("Main: Initiated auth client")
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		for name, headers := range r.Header {
-			for _, h := range headers {
-				fmt.Fprintf(w, "%v: %v\n", name, h)
-			}
-		}
-	})
+	http.Handle("/", templ.Handler(templates.Hello("Tyler")))
+	// http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	// 	headerStore := make(map[string]string)
+	// 	for name, headers := range r.Header {
+	// 		for _, h := range headers {
+	// 			headerStore[name] = h
+	// 		}
+	// 	}
+	// 	// Tailscale-User-Login
+	// })
 	http.HandleFunc("/login", auth.LoginHandler)
 	http.HandleFunc("/callback", auth.CallbackHandler)
 	http.HandleFunc("/logout", auth.LogoutHandler)
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "assets/favicon.ico")
+	})
 	http.ListenAndServe(":8080", nil)
 }
