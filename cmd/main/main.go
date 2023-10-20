@@ -9,7 +9,7 @@ import (
 	"tylerdmast/work/pkg/authenticator"
 	"tylerdmast/work/pkg/cookies"
 	"tylerdmast/work/pkg/errors"
-	templates "tylerdmast/work/web/template"
+	"tylerdmast/work/web/components"
 
 	"github.com/a-h/templ"
 	"github.com/joho/godotenv"
@@ -38,7 +38,7 @@ func main() {
 	errors.HandleFatalError(err, "Main: Issue initiating authorization struct")
 	log.Printf("Main: Initiated auth client")
 
-	http.Handle("/", templ.Handler(templates.Hello("Tyler")))
+	http.Handle("/", templ.Handler(components.Hello("Tyler")))
 	// http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 	// 	headerStore := make(map[string]string)
 	// 	for name, headers := range r.Header {
