@@ -127,7 +127,7 @@ func (a *Authorization) CallbackHandler(w http.ResponseWriter, r *http.Request) 
 
 	err = r.ParseForm()
 	if err != nil {
-		log.Printf("Callback Handler: issue parse request form", err)
+		log.Printf("Callback Handler: issue parse request form - %s", err)
 		http.Error(w, "parse error", http.StatusInternalServerError)
 		return
 	}
@@ -190,8 +190,13 @@ func (a *Authorization) CallbackHandler(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Error writing profile cookie", http.StatusInternalServerError)
 		return
 	}
-
-	w.Write([]byte("<a href='login' target='_self'>Login</a><br><a href='logout' target='_self'>Logout</a>"))
+	callbackRedirect, err := url.Parse("https://" + r.Host + "/")
+	if err != nil {
+		log.Printf("Callback Handler: issue parsing callback redirect url - %s", err)
+		http.Error(w, "Error parsing callback url", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, callbackRedirect.String(), http.StatusTemporaryRedirect)
 }
 
 func (a *Authorization) LogoutHandler(w http.ResponseWriter, r *http.Request) {
