@@ -9,12 +9,13 @@ import (
 	"net/http"
 )
 
-type Session struct {
-	Values map[string]interface{}
+type Store struct {
+	Cookies    map[string]http.Cookie
+	SigningKey []byte
 }
 
-func ReadSigned(r *http.Request, name string, secret []byte) (string, error) {
-	signedVal, err := Read(r, name)
+func (jar *Store) ReadSigned(r *http.Request, name string) (string, error) {
+	signedVal, err := jar.Read(r, name)
 	if err != nil {
 		return "", err
 	}
@@ -27,7 +28,7 @@ func ReadSigned(r *http.Request, name string, secret []byte) (string, error) {
 	signature := signedVal[:sha256.Size]
 	value := signedVal[sha256.Size:]
 
-	mac := hmac.New(sha256.New, secret)
+	mac := hmac.New(sha256.New, jar.SigningKey)
 	mac.Write([]byte(name))
 	mac.Write([]byte(value))
 	expectedSig := mac.Sum(nil)
@@ -39,7 +40,7 @@ func ReadSigned(r *http.Request, name string, secret []byte) (string, error) {
 	return value, nil
 }
 
-func Read(r *http.Request, name string) (string, error) {
+func (jar *Store) Read(r *http.Request, name string) (string, error) {
 	log.Printf("Reading raw cookie: %s", name)
 	cookie, err := r.Cookie(name)
 	if err != nil {
@@ -54,19 +55,19 @@ func Read(r *http.Request, name string) (string, error) {
 	return string(value), nil
 }
 
-func WriteSigned(w http.ResponseWriter, cookie http.Cookie, secret []byte) error {
+func (jar *Store) WriteSigned(w http.ResponseWriter, cookie http.Cookie) error {
 	log.Printf("Writing signed cookie")
-	mac := hmac.New(sha256.New, secret)
+	mac := hmac.New(sha256.New, jar.SigningKey)
 	mac.Write([]byte(cookie.Name))
 	mac.Write([]byte(cookie.Value))
 	signature := mac.Sum(nil)
 
 	cookie.Value = string(signature) + cookie.Value
 
-	return Write(w, cookie)
+	return jar.Write(w, cookie)
 }
 
-func Write(w http.ResponseWriter, cookie http.Cookie) error {
+func (jar *Store) Write(w http.ResponseWriter, cookie http.Cookie) error {
 	log.Printf("Writing raw cookie")
 	cookie.Value = base64.URLEncoding.EncodeToString([]byte(cookie.Value))
 	if len(cookie.String()) > 4096 {
