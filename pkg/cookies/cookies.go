@@ -5,13 +5,15 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"log"
 	"net/http"
+
+	"github.com/charmbracelet/log"
 )
 
 type Store struct {
 	Cookies    map[string]http.Cookie
 	SigningKey []byte
+	Log        log.Logger
 }
 
 func (jar *Store) ReadSigned(r *http.Request, name string) (string, error) {
@@ -19,7 +21,7 @@ func (jar *Store) ReadSigned(r *http.Request, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.Printf("Reading signed cookie: %s", name)
+	jar.Log.Debugf("Reading signed cookie: %s", name)
 
 	if len(signedVal) < sha256.New().Size() {
 		return "", errors.New("Cookie not signed correctly")
@@ -41,7 +43,7 @@ func (jar *Store) ReadSigned(r *http.Request, name string) (string, error) {
 }
 
 func (jar *Store) Read(r *http.Request, name string) (string, error) {
-	log.Printf("Reading raw cookie: %s", name)
+	jar.Log.Debugf("Reading raw cookie: %s", name)
 	cookie, err := r.Cookie(name)
 	if err != nil {
 		return "", err
@@ -56,7 +58,7 @@ func (jar *Store) Read(r *http.Request, name string) (string, error) {
 }
 
 func (jar *Store) WriteSigned(w http.ResponseWriter, cookie http.Cookie) error {
-	log.Printf("Writing signed cookie")
+	jar.Log.Debugf("Writing signed cookie")
 	mac := hmac.New(sha256.New, jar.SigningKey)
 	mac.Write([]byte(cookie.Name))
 	mac.Write([]byte(cookie.Value))
@@ -68,7 +70,7 @@ func (jar *Store) WriteSigned(w http.ResponseWriter, cookie http.Cookie) error {
 }
 
 func (jar *Store) Write(w http.ResponseWriter, cookie http.Cookie) error {
-	log.Printf("Writing raw cookie")
+	jar.Log.Debugf("Writing raw cookie")
 	cookie.Value = base64.URLEncoding.EncodeToString([]byte(cookie.Value))
 	if len(cookie.String()) > 4096 {
 		return errors.New("Cookie value too long")

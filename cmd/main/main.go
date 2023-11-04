@@ -3,40 +3,54 @@ package main
 import (
 	"crypto/rand"
 	"encoding/gob"
-	"log"
 	"net/http"
+	"os"
 
 	"tylerdmast/work/pkg/authenticator"
-	"tylerdmast/work/pkg/errors"
 	"tylerdmast/work/web/components"
 	"tylerdmast/work/web/state"
 
+	"github.com/charmbracelet/log"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	logger := log.NewWithOptions(os.Stderr, log.Options{
+		Level:           log.DebugLevel,
+		ReportTimestamp: true,
+		ReportCaller:    true,
+	})
+
 	key := make([]byte, 64)
 	_, err := rand.Read(key)
-	errors.HandleFatalError(err, "Main: Issue generating 64 byte secret key")
-	if len(key) != 64 {
-		errors.HandleFatalError(err, "Main: Key not of length 64 bytes")
+	if err != nil {
+		logger.Fatal("Issue generating 64 byte secret key", "err", err)
 	}
-	log.Printf("Main: Generated secret key")
+	if len(key) != 64 {
+		logger.Fatal("Key is not of appropriate length", "len", len(key))
+	}
+	logger.Debug("Generated secret key")
 
 	err = godotenv.Load("configs/.env")
-	errors.HandleFatalError(err, "Main: Issue reading .env file")
-	log.Printf("Main: Loaded env file")
+	if err != nil {
+		logger.Fatal("Issue reading .env file", "err", err)
+	}
+	logger.Debug("Loaded env file")
 
 	gob.Register(&authenticator.User{})
 
-	log.Printf("Main: Initiating auth client...")
-	auth := authenticator.Authorization{}
+	logger.Debug("Initiating auth client...")
+	auth := authenticator.Authorization{
+		Log: *logger.WithPrefix("AUTH"),
+	}
 	err = auth.New(key)
-	errors.HandleFatalError(err, "Main: Issue initiating authorization struct")
-	log.Printf("Main: Initiated auth client")
+	if err != nil {
+		logger.Fatal("Issue initiating auth struct", "err", err)
+	}
+	logger.Debug("Auth client successfully initiated")
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		pageState := state.IsLoggedIn(r, auth)
+		pageState := state.IsLoggedIn(r, auth, *logger)
 		components.Home(pageState).Render(r.Context(), w)
 	})
 	http.HandleFunc("/login", auth.LoginHandler)

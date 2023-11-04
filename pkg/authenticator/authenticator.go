@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"errors"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,6 +14,7 @@ import (
 
 	"tylerdmast/work/pkg/cookies"
 
+	"github.com/charmbracelet/log"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 )
@@ -23,6 +23,7 @@ type Authorization struct {
 	OidcProvider *oidc.Provider
 	OauthConfig  oauth2.Config
 	SessionStore cookies.Store
+	Log          log.Logger
 }
 
 type Session struct {
@@ -66,6 +67,7 @@ func (a *Authorization) New(signingKey []byte) error {
 
 	a.SessionStore = cookies.Store{
 		SigningKey: signingKey,
+		Log:        *a.Log.WithPrefix("COOK"),
 	}
 	return nil
 }
@@ -84,7 +86,7 @@ func (a *Authorization) VerifyIDToken(ctx context.Context, token *oauth2.Token) 
 
 func (a *Authorization) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	state, err := generateState()
-	// log.Printf("Login Handler: state = %s", state)
+	a.Log.Debugf("Login Handler: state = %s", state)
 	if err != nil {
 		http.Error(w, "Error generating state", http.StatusInternalServerError)
 	}
@@ -93,12 +95,12 @@ func (a *Authorization) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Values: make(map[string]interface{}),
 	}
 	sess.Values["state"] = state
-	// log.Printf("Login Handler: session values = %s", sess.Values)
+	a.Log.Debugf("Login Handler: session values = %s", sess.Values)
 
 	var buf bytes.Buffer
 	err = gob.NewEncoder(&buf).Encode(sess)
 	if err != nil {
-		log.Printf("Issue encoding session cookie")
+		a.Log.Debugf("Issue encoding session cookie")
 		http.Error(w, "Issue encoding session cookie", http.StatusInternalServerError)
 		return
 	}
@@ -138,53 +140,53 @@ func (a *Authorization) CallbackHandler(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "decoding error", http.StatusInternalServerError)
 		return
 	}
-	// log.Printf("Callback Handler: Expected state from callback - %s", sessionCookie.Values["state"])
+	a.Log.Debugf("Callback Handler: Expected state from callback - %s", sessionCookie.Values["state"])
 
 	err = r.ParseForm()
 	if err != nil {
-		log.Printf("Callback Handler: issue parse request form - %s", err)
+		a.Log.Debugf("Callback Handler: issue parse request form - %s", err)
 		http.Error(w, "parse error", http.StatusInternalServerError)
 		return
 	}
 
 	callbackState := r.FormValue("state")
-	// log.Printf("Callback Handler: Callback response state - %s", callbackState)
+	a.Log.Debugf("Callback Handler: Callback response state - %s", callbackState)
 	if sessionCookie.Values["state"] != callbackState {
-		log.Printf("Callback Handler: state from callback does not match expected state")
+		a.Log.Debugf("Callback Handler: state from callback does not match expected state")
 		http.Error(w, "state error", http.StatusUnauthorized)
 		return
 	}
 
 	accToken, err := a.OauthConfig.Exchange(r.Context(), r.FormValue("code"))
 	if err != nil {
-		log.Printf("Callback Handler: could not exchange token %s", err)
+		a.Log.Debugf("Callback Handler: could not exchange token %s", err)
 		http.Error(w, "exchange error", http.StatusInternalServerError)
 		return
 	}
-	// log.Printf("Callback Handler: token - %s", accToken.AccessToken)
+	a.Log.Debugf("Callback Handler: token - %s", accToken.AccessToken)
 	idToken, err := a.VerifyIDToken(r.Context(), accToken)
 	if err != nil {
-		log.Printf("Callback Handler: could not verify ID Token %s", err)
+		a.Log.Debugf("Callback Handler: could not verify ID Token %s", err)
 		http.Error(w, "verification error", http.StatusInternalServerError)
 		return
 	}
-	// log.Printf("Callback Handler: ID token - %s", idToken)
+	a.Log.Debugf("Callback Handler: ID token - %s", idToken)
 
 	profile := User{
 		AccessToken: accToken.AccessToken,
 	}
 	err = idToken.Claims(&profile)
 	if err != nil {
-		log.Printf("Callback Handler: Error unmarshalling profile from id token - %s", err)
+		a.Log.Debugf("Callback Handler: Error unmarshalling profile from id token - %s", err)
 		http.Error(w, "parsing error", http.StatusInternalServerError)
 		return
 	}
-	// log.Printf("Callback Handler: user profile - %v", profile)
+	a.Log.Debugf("Callback Handler: user profile - %v", profile)
 
 	var buf bytes.Buffer
 	err = gob.NewEncoder(&buf).Encode(profile)
 	if err != nil {
-		log.Printf("Issue encoding user object - %s", err)
+		a.Log.Debugf("Issue encoding user object - %s", err)
 		http.Error(w, "encoding error", http.StatusInternalServerError)
 		return
 	}
@@ -199,13 +201,13 @@ func (a *Authorization) CallbackHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	err = a.SessionStore.WriteSigned(w, profileCookie)
 	if err != nil {
-		log.Printf("Login Handler: issue writing profile cookie - %s", err)
+		a.Log.Debugf("Login Handler: issue writing profile cookie - %s", err)
 		http.Error(w, "Error writing profile cookie", http.StatusInternalServerError)
 		return
 	}
 	callbackRedirect, err := url.Parse("https://" + r.Host + "/")
 	if err != nil {
-		log.Printf("Callback Handler: issue parsing callback redirect url - %s", err)
+		a.Log.Debugf("Callback Handler: issue parsing callback redirect url - %s", err)
 		http.Error(w, "Error parsing callback url", http.StatusInternalServerError)
 		return
 	}
@@ -215,25 +217,25 @@ func (a *Authorization) CallbackHandler(w http.ResponseWriter, r *http.Request) 
 func (a *Authorization) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	logoutUrl, err := url.Parse("https://" + os.Getenv("AUTH0_DOMAIN") + "/v2/logout")
 	if err != nil {
-		log.Printf("Logout Handler: Issue parsing logout url - %s", err)
+		a.Log.Debugf("Logout Handler: Issue parsing logout url - %s", err)
 		http.Error(w, "parsing error", http.StatusInternalServerError)
 		return
 	}
-	// log.Printf("Logout Handler: Setting logout url - %s", logoutUrl)
+	a.Log.Debugf("Logout Handler: Setting logout url - %s", logoutUrl)
 
 	returnTo, err := url.Parse("https://" + r.Host)
 	if err != nil {
-		log.Printf("Logout Handler: Issue parsing redirect url - %s", err)
+		a.Log.Debugf("Logout Handler: Issue parsing redirect url - %s", err)
 		http.Error(w, "parsing error", http.StatusInternalServerError)
 		return
 	}
-	// log.Printf("Logout Handler: Setting returnTo url - %s", returnTo)
+	a.Log.Debugf("Logout Handler: Setting returnTo url - %s", returnTo)
 
 	parameters := url.Values{}
 	parameters.Add("returnTo", returnTo.String())
 	parameters.Add("client_id", os.Getenv("AUTH0_CLIENT_ID"))
 	logoutUrl.RawQuery = parameters.Encode()
-	// log.Printf("Logout Handler: constructed logout url - %s", logoutUrl)
+	a.Log.Debugf("Logout Handler: constructed logout url - %s", logoutUrl)
 
 	negatedSessionCookie := http.Cookie{
 		Name:     "session",
