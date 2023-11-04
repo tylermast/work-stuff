@@ -1,6 +1,5 @@
 package components
 
-import "strconv"
 import "tylerdmast/work/web/state"
 
 templ Page() {
@@ -19,38 +18,50 @@ templ Page() {
 	</html>
 }
 
-templ NavBar() {
-	<header class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
-		<a href="#" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none">
-			<span class="fs-4">Simple Header</span>
-		</a>
-		<ul class="nav nav-pills">
-			<li class="nav-item">
-				<a href="#" class="nav-link active" aria-current="page">Home</a>
-			</li>
-			<li class="nav-item">
-				<a href="/login" class="nav-link">Login</a>
-			</li>
-			<li class="nav-item">
-				<a href="/logout" class="nav-link">Logout</a>
-			</li>
-		</ul>
-	</header>
+templ NavBar(state state.State) {
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Work Stuff</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarScroll" aria-controls="navbarScroll" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarScroll">
+                <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll" style="--bs-scroll-height: 100px;">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="/">Home</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="navbar-nav justify-content-end align-items-center">
+                @Login(state)
+            </div>
+        </div>
+    </nav>
+}
+
+templ Login(state state.State) {
+    if state.LoggedIn {
+        <p class="nav-text" style="margin:0">
+            { state.UserName }
+        </p>
+        <img src={ state.UserAvatar } height="32" width="32" alt="ProfileImage"
+            class="d-inline-block" style="border-radius:50%;margin-left:0.5rem;margin-right:0.5rem;"/>
+        <a class="btn btn-primary" role="button" href="/logout">Logout</a>
+    } else {
+        <a class="btn btn-primary" style="padding-left:0.5rem;" role="button" href="/login">Login</a>
+    }
 }
 
 templ Cookies(state state.State) {
 	<div class="container">
-		<p>{ strconv.FormatBool(state.LoggedIn) }</p>
-		<p>{ state.UserName }</p>
 		<pre style="white-space: pre-wrap">{ state.IDToken }</pre>
 		<pre>{ state.AccessToken }</pre>
-		<img src={ state.UserAvatar } alt="alternatetext"/>
 	</div>
 }
 
 templ Home(state state.State) {
 	@Page() {
-		@NavBar()
+		@NavBar(state)
 		@Cookies(state)
 	}
 }
