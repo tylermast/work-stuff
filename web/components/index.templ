@@ -2,7 +2,26 @@ package components
 
 import "tylerdmast/work/web/state"
 
-templ Page() {
+templ Home(state state.State) {
+	@Page(state) {
+        @HomeLayout(state)
+	}
+}
+
+templ HomeLayout(state state.State) {
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col">
+                @Cookies(state)
+            </div> 
+            <div class="col-sm-2">
+                @ServerTime()
+            </div> 
+        </div>
+    </div>
+}
+
+templ Page(state state.State) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -13,6 +32,7 @@ templ Page() {
 			<script src="https://unpkg.com/htmx.org@1.9.6" integrity="sha384-FhXw7b6AlE/jyjlZH5iHa/tTe9EpJ1Y55RjcgPbjeWMskSxZt1v9qkxLJWNJaGni" crossorigin="anonymous"></script>
 		</head>
 		<body data-bs-theme="dark">
+            @NavBar(state)
 			{ children... }
 		</body>
 	</html>
@@ -55,13 +75,12 @@ templ Login(state state.State) {
 templ Cookies(state state.State) {
 	<div class="container">
 		<pre style="white-space: pre-wrap">{ state.IDToken }</pre>
-		<pre>{ state.AccessToken }</pre>
+		<pre style="white-space: pre-wrap">{ state.AccessToken }</pre>
 	</div>
 }
 
-templ Home(state state.State) {
-	@Page() {
-		@NavBar(state)
-		@Cookies(state)
-	}
+templ ServerTime() {
+    <div hx-get="/time" hx-trigger="load, every 5s" hx-target="#server-clock">
+        <p id="server-clock" style="text-align:end"></p>
+    </div>
 }

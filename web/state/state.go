@@ -52,6 +52,7 @@ func IsLoggedIn(r *http.Request, auth authenticator.Authorization, log log.Logge
 		log.Debugf("IsLoggedIn: Issue marshalling id token %s", err)
 	}
 	s.IDToken = string(buf)
-	log.Debug(string(buf))
+	log.Debug(s.IDToken)
+	log.Debug(s.AccessToken)
 	return s
 }

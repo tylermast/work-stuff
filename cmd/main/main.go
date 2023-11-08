@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"net/http"
 	"os"
+	"time"
 
 	"tylerdmast/work/pkg/authenticator"
 	"tylerdmast/work/web/components"
@@ -58,6 +59,11 @@ func main() {
 	http.HandleFunc("/logout", auth.LogoutHandler)
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "assets/favicon.ico")
+	})
+	http.HandleFunc("/time", func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now().Format("15:04")
+		logger.Debug("Called /time", "time", now)
+		w.Write([]byte(now))
 	})
 	http.ListenAndServe(":8080", nil)
 }
